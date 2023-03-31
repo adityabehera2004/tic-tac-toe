@@ -83,7 +83,6 @@ socket.on('start-game', () => { //might not even need this. but good to have
       }
    }
    document.getElementById("play-again").disabled = true;
-   }
 });
 
 socket.on('wait-for-start', () => {
