@@ -1,214 +1,242 @@
-const socket = io('/');
+const express = require('express')
+const app = express()
+const server = require('http').Server(app)
+const io = require('socket.io')(server)
+const { v4: uuidV4 } = require('uuid')
 
-let turn = 'X';
-let notturn = 'O';
-let mark = null;
+app.set('view engine', 'ejs')
+app.use(express.static('public'))
 
-start = false
+const rooms = new Map();
 
+app.get('/', (req, res) => {
+   //res.redirect('/lobby');
+   const availableRooms = [];
+   for (const [roomId, room] of rooms) {
+      availableRooms.push({
+         id: roomId,
+         numClients: room.clients.size,
+      });
+   }
+   res.render('lobby', { rooms: availableRooms });
+});
+
+/*app.get('/lobby', (req, res) => {
+   // Get list of rooms
+   const availableRooms = [];
+   for (const [roomId, room] of rooms) {
+      availableRooms.push({
+         id: roomId,
+         numClients: room.clients.size,
+      });
+   }
+   res.render('lobby', { rooms: availableRooms });
+});*/
+
+app.get('/:room', (req, res) => {
+   res.render('room', { roomId: req.params.room })
+})
+
+//const clientsInRoom = new Map();
+start = false;
+xready = false;
+oready  = false;
+turn = ''
 board = [
    ['', '', ''],
    ['', '', ''],
    ['', '', '']
 ];
 
-socket.on('connect', () => {
-   socket.emit('join-room', ROOM_ID);
-   displayUpdate('Tic Tac Toe')
-});
-
-socket.on('room-exists', (roomName) => { //does not exist
-   const updateBox = document.getElementById('update-box');
-   updateBox.textContent = 'You are not creative. Room'+roomName+' already exists.';
-});
-
-socket.on('room-created', (roomName) => { //does not exist
-   const updateBox = document.getElementById('update-box');
-   updateBox.textContent = 'A tic-tac-toe dynasty is created at '+roomName;
-});
-
-socket.on('room-full', () => { //does not exist
-   // handle room full error
-});
-
-socket.on('assign-mark', (m) => {
-   mark = m;
-   if (mark==='W') {
-      return
-   }
-   else {
-      const cells = document.querySelectorAll('.cell');
-      for (let i = 0; i < cells.length; i++) {
-         cells[i].setAttribute('hovermark', mark);
-         if (mark===turn) { 
-            cells[i].style.setProperty('--hover-color', 'black');
-         }
-         else if (mark===notturn) { 
-            cells[i].style.setProperty('--hover-color', 'red'); 
-         }
+io.on('connection', socket => {
+   socket.on('join-room', (roomId) => {
+      room = rooms.get(roomId);
+      if (!room) {
+         // Create new room if it doesn't exist
+         room = { clients: new Set([socket.id]), x: null, o: null };
+         rooms.set(roomId, room);
       }
-   }
-});
-
-socket.on('user-connected', (xo) => {
-   // handle new user connection
-   displayUpdate('A challenger approaches!');
-});
-
-socket.on('user-disconnected', (xo) => {
-   // handle user disconnection
-   displayUpdate('Your opponent rage quit! Victory by submission!');
-   start = false
-   board = [
-      ['', '', ''],
-      ['', '', ''],
-      ['', '', '']
-   ];
-   document.getElementById("play-again").disabled = false;
-});
-
-socket.on('start-game', () => { //might not even need this. but good to have
-   start = true
-   turn = 'X'
-   notturn = 'O'
-   const cells = document.querySelectorAll('.cell');
-   for (let i = 0; i < cells.length; i++) {
-      cells[i].innerText = '';
-      if (mark !== 'W') { cells[i].setAttribute('hovermark', mark); }
-      if (mark===turn) { 
-         cells[i].style.setProperty('--hover-color', 'black');
+      else {
+         room.clients.add(socket.id);
       }
-      else if (mark===notturn) { 
-         cells[i].style.setProperty('--hover-color', 'red'); 
+
+      socket.join(roomId)
+      let mark;
+      if (room.x === null) {
+         mark = 'X';
+         room.x = socket.id;
+         xready = true;
+      } else if (room.o === null) {
+         mark = 'O';
+         room.o = socket.id;
+         oready = true;
+      } else {
+         mark = 'W';
       }
-   }
-   document.getElementById("play-again").disabled = true;
-});
+      socket.emit('assign-mark', mark);
+      /*console.log(roomId)
+      console.log(room.clients.size)
+      console.log(room.x+' '+room.o)
+      console.log(socket.id)*/
+      if (mark !== 'W') { socket.to(roomId).emit('user-connected', mark) }
+      //console.log(rooms)
 
-socket.on('wait-for-start', () => {
-   displayUpdate('Wait for the game to start!');
-});
-socket.on('wait-your-turn', () => {
-   displayUpdate('Wait your turn');
-});
-
-socket.on('cell-clicked', (row, col, xo) => { //GAME LOGIC GOES HERE
-   displayClick(row, col, xo);
-   board[row][col] = xo;
-   //console.log(board)
-   switchTurn();
-   displayUpdate('Tic Tac Toe')
-   win = checkWin()
-   if (win !== null) {
-      //socket.emit('game-over', win);
-      if (win==='-') { displayUpdate("It's a draw!"); }
-      else { displayUpdate(win+' wins!'); }
-      start = false
-      board = [
-         ['', '', ''],
-         ['', '', ''],
-         ['', '', '']
-      ];
-      const cells = document.querySelectorAll('.cell');
-      for (let i = 0; i < cells.length; i++) {
-         cells[i].setAttribute('hovermark', '');
-         cells[i].style.setProperty('--hover-color', 'red');
+      if(room.x !== null && room.o !== null && xready===true && oready===true) {
+         start = true;
+         turn = room.x
+         socket.to(roomId).emit('start-game');
+         socket.emit('start-game');
       }
-      document.getElementById("play-again").disabled = false;
-   }
-});
+      
+      socket.on('cell-clicked', (row, col, xo) => { //GAME LOGIC GOES HERE
+         if(board[row][col]==='') {
+            if(start===true) {
+               if (socket.id===turn) {
+                  //console.log(xo+' '+row+' '+col)
+                  socket.to(roomId).emit('cell-clicked', row, col, xo);
+                  socket.emit('cell-clicked', row, col, xo);
 
-function handleCellClick(row, col) {
-   if (mark==='W') {
-      return;
-   }
-   else {
-      //console.log(start)
-      //console.log(turn)
-      //console.log(mark)
-      if(board[row][col]==='') {
-         console.log('board')
-         if (start===true) {
-            console.log('start')
-            if (turn===mark) {
-               console.log('mark')
-               socket.emit('cell-clicked', row, col, mark);
+                  board[row][col] = xo;
+                  //console.log(board)
+
+                  if(turn===room.x) { turn=room.o }
+                  else if(turn===room.o) { turn=room.x }
+
+                  //check win
+                  for (let i = 0; i < 3; i++) {
+                     // Check rows
+                     if (board[i][0] !== '' && board[i][0] === board[i][1] && board[i][1] === board[i][2]) {
+                        start = false;
+                        xready = false;
+                        oready  = false;
+                        turn = ''
+                        board = [
+                           ['', '', ''],
+                           ['', '', ''],
+                           ['', '', '']
+                        ];
+                     }
+                     // Check columns
+                     if (board[0][i] !== '' && board[0][i] === board[1][i] && board[1][i] === board[2][i]) {
+                        start = false;
+                        xready = false;
+                        oready  = false;
+                        turn = ''
+                        board = [
+                           ['', '', ''],
+                           ['', '', ''],
+                           ['', '', '']
+                        ];
+                     }
+                  }
+                  // Check diagonals
+                  if (board[0][0] !== '' && board[0][0] === board[1][1] && board[1][1] === board[2][2]) {
+                     start = false;
+                     xready = false;
+                     oready  = false;
+                     turn = ''
+                     board = [
+                        ['', '', ''],
+                        ['', '', ''],
+                        ['', '', '']
+                     ];
+                  }
+                  if (board[0][2] !== '' && board[0][2] === board[1][1] && board[1][1] === board[2][0]) {
+                     start = false;
+                     xready = false;
+                     oready  = false;
+                     turn = ''
+                     board = [
+                        ['', '', ''],
+                        ['', '', ''],
+                        ['', '', '']
+                     ];
+                  }
+                  // Check draw
+                  isDraw = true
+                  for (let i = 0; i < 3; i++) {
+                     for (let j = 0; j < 3; j++) {
+                        if (board[i][j] === '') {
+                           isDraw = false;
+                           break;
+                        }
+                     }
+                  }
+                  if (isDraw) {
+                     start = false;
+                     xready = false;
+                     oready  = false;
+                     turn = ''
+                     board = [
+                        ['', '', ''],
+                        ['', '', ''],
+                        ['', '', '']
+                     ];
+                  }
+               }
+               else { socket.emit('wait-your-turn') }
             }
-            else { displayUpdate('Wait your turn'); }
+            else { socket.emit('wait-for-start') }
          }
-         else { displayUpdate('Wait for the game to start!'); }
-      }
-   }
-}
+      });
 
-function switchTurn() {
-   temp = turn
-   turn = notturn
-   notturn = temp
-   //console.log(turn+' '+notturn)
-   const cells = document.querySelectorAll('.cell');
-   for (let i = 0; i < cells.length; i++) {
-      if (mark===turn) { 
-         cells[i].style.setProperty('--hover-color', 'black');
-      }
-      else if (mark===notturn) { 
-         cells[i].style.setProperty('--hover-color', 'red'); 
-      }
-   }
-}
-
-function checkWin() {
-   for (let i = 0; i < 3; i++) {
-      // Check rows
-      if (board[i][0] !== '' && board[i][0] === board[i][1] && board[i][1] === board[i][2]) {
-         return board[i][0];
-      }
-      // Check columns
-      if (board[0][i] !== '' && board[0][i] === board[1][i] && board[1][i] === board[2][i]) {
-         return board[0][i];
-      }
-   }
-   // Check diagonals
-   if (board[0][0] !== '' && board[0][0] === board[1][1] && board[1][1] === board[2][2]) {
-      return board[1][1];
-   }
-   if (board[0][2] !== '' && board[0][2] === board[1][1] && board[1][1] === board[2][0]) {
-      return board[1][1];
-   }
-   // Check draw
-   isDraw = true
-   for (let i = 0; i < 3; i++) {
-      for (let j = 0; j < 3; j++) {
-         if (board[i][j] === '') {
-            isDraw = false;
-            break;
+      socket.on('play-again', () => {
+         if (room.x === socket.id) {
+            xready = true
          }
+         else if (room.o === socket.id) {
+            oready = true
+         }
+         if(room.x !== null && room.o !== null && xready===true && oready===true) {
+            start = true;
+            turn = room.x
+            /*tempsocket = room.x
+            room.x = room.o
+            room.o = tempsocket
+            socket.to(room.x).emit('assign-mark', 'X');
+            socket.to(room.o).emit('assign-mark', 'O');*/
+            socket.to(roomId).emit('start-game');
+            socket.emit('start-game');
+         }
+      });
+
+      socket.on('disconnect', () => {
+         room.clients.delete(socket.id);
+         if (room.x === socket.id) {
+            room.x = null
+            socket.to(roomId).emit('user-disconnected', 'X')
+            start = false
+            board = [
+               ['', '', ''],
+               ['', '', ''],
+               ['', '', '']
+            ];
+         }
+         else if (room.o === socket.id) {
+            room.o = null
+            socket.to(roomId).emit('user-disconnected', 'O')
+            start = false
+            board = [
+               ['', '', ''],
+               ['', '', ''],
+               ['', '', '']
+            ];
+         }
+         if (room.clients.size === 0) {
+            rooms.delete(roomId);
+         }
+      })
+   })
+
+   socket.on('create-room', (roomName) => {
+      room = rooms.get(roomName);
+      if(!room) {
+         const newRoom = { clients: new Set([socket.id]), x: null, o: null };
+         rooms.set(roomName, newRoom);
       }
-   }
-   if (isDraw) { return '-' }
-   return null;
-}
+   });
+})
 
-function displayClick(row, col, xo) {
-   const cell = document.getElementById(`cell-${row}-${col}`);
-   cell.innerText = xo;
-   cell.setAttribute('hovermark', '');
-}
-
-function displayUpdate(str) {
-   const updateBox = document.getElementById('update-box');
-   updateBox.textContent = str;
-}
-
-function handlePlayAgain(){
-   if(mark !== 'W') {
-      const cells = document.querySelectorAll('.cell');
-      for (let i = 0; i < cells.length; i++) {
-         cells[i].innerText = '';
-         cells[i].setAttribute('hovermark', mark);
-         cells[i].style.setProperty('--hover-color', 'red');
-      }
-      displayUpdate('Tic Tac Toe')
-      socket.emit('play-again')
-   }
-}
+server.listen(process.env.PORT || 3000, () => {
+   console.log(`Server started. Listening on port ${process.env.PORT || 3000}`);
+});
