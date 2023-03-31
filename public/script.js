@@ -71,18 +71,20 @@ socket.on('start-game', () => { //might not even need this. but good to have
    start = true
    turn = 'X'
    notturn = 'O'
-   const cells = document.querySelectorAll('.cell');
-   for (let i = 0; i < cells.length; i++) {
-      cells[i].innerText = '';
-      cells[i].setAttribute('hovermark', mark);
-      if (mark===turn) { 
-         cells[i].style.setProperty('--hover-color', 'black');
+   if (mark !== 'W') {
+      const cells = document.querySelectorAll('.cell');
+      for (let i = 0; i < cells.length; i++) {
+         cells[i].innerText = '';
+         cells[i].setAttribute('hovermark', mark);
+         if (mark===turn) { 
+            cells[i].style.setProperty('--hover-color', 'black');
+         }
+         else if (mark===notturn) { 
+            cells[i].style.setProperty('--hover-color', 'red'); 
+         }
       }
-      else if (mark===notturn) { 
-         cells[i].style.setProperty('--hover-color', 'red'); 
-      }
+      document.getElementById("play-again").disabled = true;
    }
-   document.getElementById("play-again").disabled = true;
 });
 
 socket.on('wait-for-start', () => {
