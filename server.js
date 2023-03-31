@@ -190,6 +190,11 @@ io.on('connection', socket => {
          if(room.x !== null && room.o !== null && xready===true && oready===true) {
             start = true;
             turn = room.x
+            /*tempsocket = room.x
+            room.x = room.o
+            room.o = tempsocket
+            socket.to(room.x).emit('assign-mark', 'X');
+            socket.to(room.o).emit('assign-mark', 'O');*/
             socket.to(roomId).emit('start-game');
             socket.emit('start-game');
          }
