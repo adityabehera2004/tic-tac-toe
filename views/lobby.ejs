@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html>
+   <head>
+      <meta charset="utf-8" />
+      <meta name="viewport" content="width=device-width, initial-scale=1" />
+      <title>Tic Tac Toe - Lobby</title>
+      <style>
+         body {
+            margin: 0;
+            padding: 0;
+            font-family: sans-serif;
+         }
+         .container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-top: 20px;
+         }
+         .header {
+            font-size: 30px;
+            margin-bottom: 20px;
+         }
+         .room-list {
+            max-height: 300px;
+            overflow-y: auto;
+            border: 1px solid black;
+            padding: 10px;
+            margin-top: 20px;
+            margin-bottom: 20px;
+         }
+         .room {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            font-size: 18px;
+         }
+         .room-link {
+            text-decoration: none;
+            color: blue;
+            margin-right: 10px;
+            font-size: 18px;
+         }
+         .refresh-button {
+            padding: 10px;
+            background-color: white;
+            border: 1px solid black;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-bottom: 10px;
+         }
+         .create-room-button {
+            padding: 10px;
+            background-color: white;
+            border: 1px solid black;
+            border-radius: 5px;
+            cursor: pointer;
+         }
+      </style>
+   </head>
+   <body>
+      <div class="container">
+         <div class="header">Tic Tac Toe - Lobby</div>
+         <div class="room-list">
+            <% if (rooms.length > 0) { %>
+               <% rooms.forEach(room => { %>
+                  <div class="room">
+                     <a class="room-link" href="/<%= room.id %>"><%= room.id %></a>
+                     <div><%= room.numClients %> / 2</div>
+                  </div>
+               <% }) %>
+            <% } else { %>
+               <div>No rooms available</div>
+            <% } %>
+         </div>
+         <button class="refresh-button" onclick="location.reload()">Refresh</button>
+         <input type="text" id="room-name" placeholder="Enter room name" style="font-size: 16px;">
+         <button class="create-room-button" onclick="createRoom()">Create Room</button></a>
+         <script>
+            function createRoom() {
+               const roomName = document.getElementById('room-name').value;
+               window.location.href = `/${roomName}`;
+               socket.emit('create-room', roomName);
+            }
+         </script>
+      </div>
+   </body>
+</html>
