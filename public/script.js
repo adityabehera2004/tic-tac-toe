@@ -107,6 +107,11 @@ socket.on('cell-clicked', (row, col, xo) => { //GAME LOGIC GOES HERE
          ['', '', ''],
          ['', '', '']
       ];
+      const cells = document.querySelectorAll('.cell');
+      for (let i = 0; i < cells.length; i++) {
+         cells[i].setAttribute('hovermark', mark);
+         cells[i].style.setProperty('--hover-color', 'red');
+      }
       document.getElementById("play-again").disabled = false;
    }
 });
