@@ -101,7 +101,8 @@ socket.on('cell-clicked', (row, col, xo) => { //GAME LOGIC GOES HERE
    win = checkWin()
    if (win !== null) {
       //socket.emit('game-over', win);
-      displayUpdate(win+' wins!');
+      if (win==='-') { displayUpdate("It's a draw!"); }
+      else { displayUpdate(win+' wins!'); }
       start = false
       board = [
          ['', '', ''],
@@ -171,6 +172,17 @@ function checkWin() {
    if (board[0][2] !== '' && board[0][2] === board[1][1] && board[1][1] === board[2][0]) {
       return board[1][1];
    }
+   // Check draw
+   isDraw = true
+   for (let i = 0; i < 3; i++) {
+      for (let j = 0; j < 3; j++) {
+         if (board[i][j] !== '') {
+            isDraw = false;
+            break;
+         }
+      }
+   }
+   if (isDraw) { return '-' }
    return null;
 }
 
