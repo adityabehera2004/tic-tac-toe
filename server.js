@@ -152,6 +152,27 @@ io.on('connection', socket => {
                         ['', '', '']
                      ];
                   }
+                  // Check draw
+                  isDraw = true
+                  for (let i = 0; i < 3; i++) {
+                     for (let j = 0; j < 3; j++) {
+                        if (board[i][j] !== '') {
+                           isDraw = false;
+                           break;
+                        }
+                     }
+                  }
+                  if (isDraw) {
+                     start = false;
+                     xready = false;
+                     oready  = false;
+                     turn = ''
+                     board = [
+                        ['', '', ''],
+                        ['', '', ''],
+                        ['', '', '']
+                     ];
+                  }
                }
                else { socket.emit('wait-your-turn') }
             }
