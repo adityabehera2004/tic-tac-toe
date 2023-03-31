@@ -14,6 +14,7 @@ board = [
 
 socket.on('connect', () => {
    socket.emit('join-room', ROOM_ID);
+   displayUpdate('Tic Tac Toe')
 });
 
 socket.on('room-exists', (roomName) => { //does not exist
@@ -109,7 +110,7 @@ socket.on('cell-clicked', (row, col, xo) => { //GAME LOGIC GOES HERE
       ];
       const cells = document.querySelectorAll('.cell');
       for (let i = 0; i < cells.length; i++) {
-         cells[i].setAttribute('hovermark', mark);
+         cells[i].setAttribute('hovermark', '');
          cells[i].style.setProperty('--hover-color', 'red');
       }
       document.getElementById("play-again").disabled = false;
