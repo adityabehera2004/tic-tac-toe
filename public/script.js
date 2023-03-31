@@ -127,8 +127,11 @@ function handleCellClick(row, col) {
       //console.log(turn)
       //console.log(mark)
       if(board[row][col]==='') {
+         console.log('board')
          if (start===true) {
+            console.log('start')
             if (turn===mark) {
+               console.log('mark')
                socket.emit('cell-clicked', row, col, mark);
             }
             else { displayUpdate('Wait your turn'); }
